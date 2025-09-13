@@ -11,13 +11,11 @@ Original file is located at
 
 # Commented out IPython magic to ensure Python compatibility.
 import xgboost as xgb
-!pip install spacy
 import spacy
 import sqlite3
 import seaborn as sns
 import re,string,unicodedata
 import pandas as pd
-!pip install pycountry
 import pycountry
 import numpy as np
 import nltk
@@ -31,42 +29,34 @@ from wordcloud import WordCloud,STOPWORDS
 from tqdm import tqdm
 from nltk.corpus import stopwords
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.pipeline import Pipeline
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_curve, auc
-from sklearn.metrics import roc_auc_score
-from sklearn.metrics import plot_confusion_matrix
-from sklearn.metrics import classification_report,confusion_matrix,accuracy_score
-from sklearn.metrics import log_loss, f1_score
+from sklearn.metrics import roc_curve, auc, roc_auc_score, classification_report,confusion_matrix,accuracy_score, log_loss, f1_score
 from sklearn.linear_model import LogisticRegression,SGDClassifier
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.feature_extraction.text import TfidfTransformer
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer, TfidfTransformer, CountVectorizer
 from nltk.corpus import stopwords
 from sklearn import metrics
 from pprint import pprint
-from sklearn.metrics import plot_confusion_matrix
 from prettytable import PrettyTable
 from numpy import math
 from nltk.tokenize.toktok import ToktokTokenizer
 from nltk.stem import LancasterStemmer,WordNetLemmatizer
-from nltk.corpus import wordnet
-from nltk.corpus import stopwords
+from nltk.corpus import wordnet, stopwords
 from nltk import pos_tag
-from gensim.models import Word2Vec
-from gensim.models import KeyedVectors
 from bs4 import BeautifulSoup
 # %matplotlib inline
 pd.set_option('display.max_columns', None)
+import kagglehub
+from kagglehub import KaggleDatasetAdapter
 
-from google.colab import drive
-drive.mount('/content/gdrive')
-import pandas as pd
-df=pd.read_csv('gdrive/My Drive/fake_job_postings.csv')
+df = kagglehub.load_dataset(
+    KaggleDatasetAdapter.PANDAS,
+    "shivamb/real-or-fake-fake-jobposting-prediction",
+    "fake_job_postings.csv",
+)
 
 sns.heatmap(df.isnull(),yticklabels=False)
 
@@ -80,78 +70,59 @@ df.nunique()
 
 df.isna().sum() / len(df)
 
-df2 = df.copy()
+df_clean = df.copy()
 
-df2.drop(['salary_range', 'job_id', 'department', 'benefits'], axis = 1, inplace = True)
+df_clean.drop(['salary_range', 'job_id', 'department', 'benefits'], axis = 1, inplace = True)
 
-df2.head()
+df_clean.head()
 
-df2 = df2.sort_values('title').reset_index(drop = True)
+df_clean = df_clean.sort_values('title').reset_index(drop = True)
 
-df2.isna().sum()
+df_clean.isna().sum()
 
-df2['employment_type'] = df2['employment_type'].bfill(axis=0)
-df2['required_experience'] = df2['required_experience'].bfill(axis=0)
-df2['required_education'] = df2['required_education'].bfill(axis = 0)
-df2['industry'] = df2['industry'].bfill(axis=0)
-df2['function'] = df2['function'].bfill(axis=0)
+column_list = ['employment_type', 'required_experience', 'required_education', 'industry', 'function']
 
-df3 = df2.copy()
+for element in column_list:
+    df_clean['employment_type'] = df_clean['employment_type'].bfill(axis=0)
 
-df3 = df3[df3['description'].notna()]
 
-df3.isna().sum()
+df_clean = df_clean[df_clean['description'].notna()]
 
-df3 = df3.dropna(axis = 0, how = 'any')
+df_clean.isna().sum()
 
-df3.shape
+df_clean = df_clean.dropna(axis = 0, how = 'any')
 
-df3 = df3.drop_duplicates(keep = 'first')
+df_clean = df_clean.drop_duplicates(keep = 'first')
 
-df4 = df3.copy()
 
-df4.head()
+df_clean['description'] = df_clean['description'] + ' ' + df_clean['requirements'] + ' ' + df_clean['company_profile']
+df_clean.drop(['company_profile', 'requirements'], axis = 1, inplace = True)
 
-df4.shape
 
-df4['description'] = df4['description'] + ' ' + df4['requirements'] + ' ' + df4['company_profile']
-df4.drop(['company_profile', 'requirements'], axis = 1, inplace = True)
+df_clean['country_code'] = df_clean['location'].str.split(',', expand=True)[0]
+df_clean['city'] = df_clean['location'].str.split(',', expand = True)[2]
 
-df4.head(3)
+df_clean.loc[df_clean['city'] == ' ', 'city'] = np.nan
 
-df4['country_code'] = df4['location'].str.split(',', expand=True)[0]
-df4['city'] = df4['location'].str.split(',', expand = True)[2]
+df_clean.isnull().sum()
 
-df4.head()
-
-df4.loc[df4['city'] == ' ', 'city'] = np.nan
-
-df4.isnull().sum()
-
-df4.dropna(inplace = True)
+df_clean.dropna(inplace = True)
 
 list_alpha_2 = [i.alpha_2 for i in list(pycountry.countries)]
 def country(df):
     if df['country_code'] in list_alpha_2:
         return pycountry.countries.get(alpha_2 = df['country_code']).name
-df4['country_name'] = df4.apply(country, axis = 1)
+df_clean['country_name'] = df_clean.apply(country, axis = 1)
 
-df4.drop(['location', 'country_code'], axis = 1, inplace = True)
-
-df4.head()
-
-df4.shape
+df_clean.drop(['location', 'country_code'], axis = 1, inplace = True)
 
 plt.figure(figsize = (20,20))
 stopwords = set(STOPWORDS)
-wc = WordCloud(background_color="white", stopwords=stopwords, width = 1600 , height = 800 , max_words = 3000).generate(" ".join(df4[df4.fraudulent == 1]['description']))
+wc = WordCloud(background_color="white", stopwords=stopwords, width = 1600 , height = 800 , max_words = 3000).generate(" ".join(df_clean[df_clean.fraudulent == 1]['description']))
 plt.axis("off")
 plt.imshow(wc , interpolation = 'bilinear')
 plt.savefig('fraud_cloud.jpeg')
 
-df_clean = df4.copy()
-
-df_clean.head()
 
 """# Making Graphs"""
 
