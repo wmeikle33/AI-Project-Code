@@ -1,3 +1,6 @@
+# AI Project Code
+This is a code from a project I completed in my Artificial Intelligence course at Beijing University, in which we used different machine learning techniques and applied them to an existing research problem. For this project, we analyzed data related job postings in order to create a model to classify them as fake or real. This was a supervised learning task. Specifically, we incorporated several different machine learning algorithsm to accomplish our task, including Logistic Regression and Bayesian Probability, amoungst others. The dataset we used was from Kaggle.com and consisted of 18,000 job descriptions out of which 866 were fake. The original data included both textual information and meta-information, with 18 distinct features. 5 of these features were longer texts and the other 13 were numeric fields or categorical data. The column “Fraudulent” distinguishes between real and fake job postings (value of 1 indicates a fake job posting, while 0 denotes a real job). This is another one of my earlier Python projects, helping to demonstrate my development over time.
+
 # Fake Job Postings — Text Classifier
 
 This repo splits a notebook-style script into a clean, modular project:
